@@ -1,0 +1,127 @@
+---
+
+  - name: Check if database is already created
+    shell: grep {{ item.oracle_db_name }}:{{ oracle_home_db }} /etc/oratab |wc -l
+    with_items: oracle_databases
+    when: item.oracle_db_name is defined
+    tags:
+    - checkifdbexists
+    register: checkdbexist
+
+#  - debug: var=checkdbexist.stdout
+#    with_items: checkdbexist.results
+#    when: master_node
+#    tags:
+#    - checkifdbexists
+
+  - name: Create responsefile for dbca
+    template: src=dbca-create-db.rsp.{{ item.0.oracle_version_db }}.j2 dest={{ oracle_rsp_stage }}/{{ oracle_dbca_rsp }}  owner={{ oracle_user }} group={{ oracle_group }} mode=644 backup=no
+    #debug: var=msg
+    with_together:
+       - oracle_databases
+       - checkdbexist.results
+    when: master_node and item.1.stdout != "1"
+    tags:
+    - dbcaresponse
+
+#  - name: Check memory
+#    debug: msg="memfree={{ ansible_memfree_mb }}M totalmem={{ ansible_memtotal_mb }}M need 616M free"
+#    failed_when: "{{ ansible_memfree_mb }} < 616"
+
+  - name: Create database(s)
+    shell: "time {{ oracle_home_db_install }}/bin/dbca -responseFile {{ oracle_rsp_stage }}/{{ oracle_dbca_rsp }} -silent -redoLogFileSize {{ item.0.redolog_size_in_mb }} "
+    with_together:
+       - oracle_databases
+       - checkdbexist.results
+    become: yes
+    become_user: "{{ oracle_user }}"
+    when: master_node and item.1.stdout != "1" and "{{ item.0.state }}"|upper == "PRESENT"
+    tags:
+      - oradbcreate
+    register: oradbcreate
+
+  - debug: var=oradbcreate.stdout_lines
+    with_items: oradbcreate.results
+    tags:
+     - oradbcreate
+    when: oradbcreate.changed
+
+  - name: Add startup.sh - dbora.service file to allow Systemd to start databases on boot
+    template: src=startup.j2 dest={{ oracle_home_db }}/bin/{{ oracle_db_name }}_startup.sh owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    become: yes
+    become_user: root
+
+  - name: Add shutdown.sh - dbora.service to allow Systemd to stop databases on boot
+    template: src=shutdown.j2 dest={{ oracle_home_db }}/bin/{{ oracle_db_name }}_shutdown.sh owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    become: yes
+    become_user: root
+
+  - name: Add dbora.service to allow Systemd to start and stop databases on boot
+    template: src=dbora.service.j2 dest=/etc/systemd/system/{{ oracle_db_name }}_dbora.service owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    become: yes
+    become_user: root
+
+  - name: Link systemd script
+    shell: ln -s /lib/systemd/system/{{ oracle_db_name }}_dbora.service /etc/systemd/system/{{ oracle_db_name }}_dbora.service
+    become: yes
+    become_user: root
+
+  - name: Reload systemd so it can see the new service.
+    shell: systemctl daemon-reload
+    become: yes
+    become_user: root
+
+  - name: Start the service and enable so it is automatically restarted on reboot.
+    service: name={{ oracle_db_name }}_dbora enable=yes state=started
+
+#  - name: Add default services to databases
+#    shell: "{{ oracle_home_db }}/bin/srvctl add service -db {{ item.value.oracle_database }}
+#    with_dict: oracle_databases
+#    when: master_node and oracle_install_option_gi == 'HA_CONFIG'
+#    tags:
+#      - oradbcreate
+#    register: oradbcreate
+
+#  - name: Check if database is registered
+#    shell: "{{ oracle_home_db }}/bin/srvctl config database "
+#    when: oracle_install_option_gi == 'CRS_CONFIG' or oracle_install_option_gi == 'HA_CONFIG'
+#    tags:
+#      - srvctlconfig
+#    register: srvctlconfig
+
+
+#  - debug: var=srvctlconfig.stdout_lines
+#    when: oracle_install_option_gi == 'CRS_CONFIG' or oracle_install_option_gi == 'HA_CONFIG'
+#    tags:
+#     - srvctlconfig
+  - name: Add dotprofile (1)
+    shell:  ps -ef | grep "ora_pmon_{{ item.oracle_db_name }}" |grep -v grep | sed 's/^.*pmon_//g'
+    with_items: oracle_databases
+    register: dbs
+    tags: dotprofile_db
+
+  - name: Add dotprofile (2)
+    template: src=dotprofile-db.j2 dest={{ oracle_user_home }}/.profile_{{ item.0.oracle_db_name }} owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    with_together:
+    - oracle_databases
+    - dbs.results
+    tags: dotprofile_db
+
+  - name: Update oratab
+    lineinfile: dest=/etc/oratab line="{{ item.1.stdout }}:{{ oracle_base }}/{{ item.0.oracle_version_db }}/{{ item.0.home }}:N" state=present
+    with_together:
+       - oracle_databases
+       - dbs.results
+    when: item.0.oracle_db_type != "SI"
+    tags: update_oratab
+
+  - name: Check if database is running
+    shell: ps -ef |grep pmon |grep -v grep
+    tags:
+     - psout
+    register: psout
+    ignore_errors: true
+
+  - debug: var=psout.stdout_lines
+    tags:
+     - psout
