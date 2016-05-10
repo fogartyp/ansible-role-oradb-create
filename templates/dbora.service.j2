@@ -13,8 +13,8 @@ Type=simple
 RemainAfterExit=yes
 User={{ oracle_user }}
 Group={{ oracle_group }}
-ExecStart={{ oracle_home_db }}/bin/{{ oracle_db_name }}_startup.sh >> {{ oracle_home_db }}/log/{{ oracle_db_name }}_startup_shutdown.log 2>&1 &
-ExecStop={{ oracle_home_db }}/bin/{{ oracle_db_name }}_shutdown.sh >> {{ oracle_home_db }}/log/{{ oracle_db_name }}_startup_shutdown.log 2>&1
+ExecStart={{ oracle_home_db_install }}/bin/{{ item.0.oracle_db_name }}_startup.sh >> {{ oracle_home_db_install }}/log/{{ item.0.oracle_db_name }}_startup_shutdown.log 2>&1 &
+ExecStop={{ oracle_home_db_install }}/bin/{{ item.0.oracle_db_name }}_shutdown.sh >> {{ oracle_home_db_install }}/log/{{ item.0.oracle_db_name }}_startup_shutdown.log 2>&1
 
 [Install]
 WantedBy=multi-user.target

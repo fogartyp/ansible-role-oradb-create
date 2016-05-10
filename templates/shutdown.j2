@@ -4,9 +4,9 @@ export TMP=/tmp
 export TMPDIR=$TMP
 export PATH=/usr/sbin:/usr/local/bin:$PATH
 export ORACLE_HOSTNAME=ol6-121.localdomain
-export ORACLE_UNQNAME=db12c
+export ORACLE_UNQNAME={{ item.0.oracle_db_name }}
 
-export ORACLE_SID=db12c
+export ORACLE_SID={{ item.0.oracle_db_name }}
 ORAENV_ASK=NO
 . oraenv
 ORAENV_ASK=YES

@@ -1,0 +1,24 @@
+---
+galaxy_info:
+  author: Patrick Fogarty
+  description: Common Oracle server setup tasks. Taken from oravirt's "oravirt/ansible-oracle" github repo.
+  company: 
+  Some suggested licenses:
+    - BSD
+  license: license (GPLv2, CC-BY, etc)
+  min_ansible_version: 1.2
+  platforms:
+  - name: EL
+    versions:
+    - 7
+  categories:
+  - cloud
+  - database
+  - database:sql
+  - development
+  - system
+dependencies: []
+  # List your role dependencies here, one per line.
+  # Be sure to remove the '[]' above if you add dependencies
+  # to this list.
+  

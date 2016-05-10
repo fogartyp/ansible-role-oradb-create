@@ -29,7 +29,7 @@
 #    failed_when: "{{ ansible_memfree_mb }} < 616"
 
   - name: Create database(s)
-    shell: "time {{ oracle_home_db_install }}/bin/dbca -responseFile {{ oracle_rsp_stage }}/{{ oracle_dbca_rsp }} -silent -redoLogFileSize {{ item.0.redolog_size_in_mb }} "
+    shell: "{{ oracle_home_db_install }}/bin/dbca -responseFile {{ oracle_rsp_stage }}/{{ oracle_dbca_rsp }} -silent -redoLogFileSize {{ item.0.redolog_size_in_mb }} "
     with_together:
        - oracle_databases
        - checkdbexist.results
@@ -47,22 +47,34 @@
     when: oradbcreate.changed
 
   - name: Add startup.sh - dbora.service file to allow Systemd to start databases on boot
-    template: src=startup.j2 dest={{ oracle_home_db }}/bin/{{ oracle_db_name }}_startup.sh owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    template: src=startup.j2 dest={{ oracle_home_db_install }}/bin/{{ item.0.oracle_db_name }}_startup.sh owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    with_together:
+       - oracle_databases
+       - checkdbexist.results
     become: yes
     become_user: root
 
   - name: Add shutdown.sh - dbora.service to allow Systemd to stop databases on boot
-    template: src=shutdown.j2 dest={{ oracle_home_db }}/bin/{{ oracle_db_name }}_shutdown.sh owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    template: src=shutdown.j2 dest={{ oracle_home_db_install }}/bin/{{ item.0.oracle_db_name }}_shutdown.sh owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    with_together:
+       - oracle_databases
+       - checkdbexist.results
     become: yes
     become_user: root
 
   - name: Add dbora.service to allow Systemd to start and stop databases on boot
-    template: src=dbora.service.j2 dest=/etc/systemd/system/{{ oracle_db_name }}_dbora.service owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    template: src=dbora.service.j2 dest=/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    with_together:
+       - oracle_databases
+       - checkdbexist.results
     become: yes
     become_user: root
 
   - name: Link systemd script
-    shell: ln -s /lib/systemd/system/{{ oracle_db_name }}_dbora.service /etc/systemd/system/{{ oracle_db_name }}_dbora.service
+    file: src=/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service  dest=/lib/systemd/system/{{ item.0.oracle_db_name }}_dbora.service state=link
+    with_together:
+       - oracle_databases
+       - checkdbexist.results
     become: yes
     become_user: root
 
@@ -72,7 +84,12 @@
     become_user: root
 
   - name: Start the service and enable so it is automatically restarted on reboot.
-    service: name={{ oracle_db_name }}_dbora enable=yes state=started
+    service: name={{ item.0.oracle_db_name }}_dbora state=restarted
+    with_together:
+       - oracle_databases
+       - checkdbexist.results
+    become: yes
+    become_user: root
 
 #  - name: Add default services to databases
 #    shell: "{{ oracle_home_db }}/bin/srvctl add service -db {{ item.value.oracle_database }}
