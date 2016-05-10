@@ -1,10 +1,8 @@
 ---
 galaxy_info:
   author: Patrick Fogarty
-  description: Common Oracle server setup tasks. Taken from oravirt's "oravirt/ansible-oracle" github repo.
+  description: Create Oracle Database. Taken from oravirt's "oravirt/ansible-oracle" github repo.
   company: 
-  Some suggested licenses:
-    - BSD
   license: license (GPLv2, CC-BY, etc)
   min_ansible_version: 1.2
   platforms:
