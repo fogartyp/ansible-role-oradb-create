@@ -1,4 +1,11 @@
 ---
+  - name: User | bash_profile
+    template: src=bash_profile.j2 dest=/home/{{ item.0.username }}/.bash_profile owner={{ item.0.username }} mode=0644
+    with_together: 
+       - oracle_users
+       - oracle_databases
+    tags:
+     - user
 
   - name: Check if database is already created
     shell: grep {{ item.oracle_db_name }}:{{ oracle_home_db }} /etc/oratab |wc -l

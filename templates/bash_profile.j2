@@ -1,0 +1,26 @@
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+       . ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+PATH=$PATH:$HOME/.local/bin:$HOME/bin
+
+TMP=/tmp; export TMP
+TMPDIR=$TMP; export TMPDIR
+ORACLE_HOSTNAME={{ ansible_fqdn }}; export ORACLE_HOSTNAME
+ORACLE_UNQNAME={{ item.1.oracle_db_name }}; export ORACLE_UNQNAME
+ORACLE_BASE={{ item.1.oracle_base }}; export ORACLE_BASE
+ORACLE_HOME=$ORACLE_BASE/{{ item.1.oracle_version_db }}/{{ item.0.home }}; export ORACLE_HOME
+ORACLE_SID=orcl; export ORACLE_SID
+PATH=/usr/sbin:$PATH; export PATH
+PATH=$ORACLE_HOME/bin:$PATH; export PATH
+LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib; export LD_LIBRARY_PATH
+CLASSPATH=$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib; export CLASSPATH
+
+
+export PATH
+
