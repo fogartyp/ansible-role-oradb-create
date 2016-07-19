@@ -1,13 +1,13 @@
 ---
   - name: User | bash_profile
-    template: src=bash_profile.j2 dest=/home/{{ oracle_user }}/.bash_profile owner={{ oracle_user }} mode=0644
-    with_items: oracle_databases
+    template: src=bash_profile.j2 dest="/home/{{ oracle_user }}/.bash_profile" owner="{{ oracle_user }}" mode=0644
+    with_items: "{{ oracle_databases }}"
     tags:
      - user
 
   - name: Check if database is already created
-    shell: grep {{ item.oracle_db_name }}:{{ oracle_home_db }} /etc/oratab |wc -l
-    with_items: oracle_databases
+    shell: grep "{{ item.oracle_db_name }}:{{ oracle_home_db }}" /etc/oratab |wc -l
+    with_items: "{{ oracle_databases }}"
     when: item.oracle_db_name is defined
     tags:
     - checkifdbexists
@@ -20,11 +20,11 @@
 #    - checkifdbexists
 
   - name: Create responsefile for dbca
-    template: src=dbca-create-db.rsp.{{ item.0.oracle_version_db }}.j2 dest={{ oracle_rsp_stage }}/{{ oracle_dbca_rsp }}  owner={{ oracle_user }} group={{ oracle_group }} mode=644 backup=no
+    template: src="dbca-create-db.rsp.{{ item.0.oracle_version_db }}.j2" dest="{{ oracle_rsp_stage }}/{{ oracle_dbca_rsp }}"  owner="{{ oracle_user }}" group="{{ oracle_group }}" mode=644 backup=no
     #debug: var=msg
     with_together:
-       - oracle_databases
-       - checkdbexist.results
+       - "{{ oracle_databases }}"
+       - "{{ checkdbexist.results }}"
     when: master_node and item.1.stdout != "1"
     tags:
     - dbcaresponse
@@ -36,8 +36,8 @@
   - name: Create database(s)
     shell: "{{ oracle_home_db_install }}/bin/dbca -responseFile {{ oracle_rsp_stage }}/{{ oracle_dbca_rsp }} -silent -redoLogFileSize {{ item.0.redolog_size_in_mb }} "
     with_together:
-       - oracle_databases
-       - checkdbexist.results
+       - "{{ oracle_databases }}"
+       - "{{ checkdbexist.results }}"
     become: yes
     become_user: "{{ oracle_user }}"
     when: master_node and item.1.stdout != "1" and "{{ item.0.state }}"|upper == "PRESENT"
@@ -46,40 +46,40 @@
     register: oradbcreate
 
   - debug: var=oradbcreate.stdout_lines
-    with_items: oradbcreate.results
+    with_items: "{{ oradbcreate.results }}"
     tags:
      - oradbcreate
     when: oradbcreate.changed
 
   - name: Add startup.sh - dbora.service file to allow Systemd to start databases on boot
-    template: src=startup.j2 dest={{ oracle_home_db_install }}/bin/{{ item.0.oracle_db_name }}_startup.sh owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    template: src=startup.j2 dest="{{ oracle_home_db_install }}/bin/{{ item.0.oracle_db_name }}_startup.sh" owner="{{ oracle_user }}" group="{{ oracle_group }}" mode=775 backup=yes
     with_together:
-       - oracle_databases
-       - checkdbexist.results
+       - "{{ oracle_databases }}"
+       - "{{ checkdbexist.results }}"
     become: yes
     become_user: root
 
   - name: Add shutdown.sh - dbora.service to allow Systemd to stop databases on boot
-    template: src=shutdown.j2 dest={{ oracle_home_db_install }}/bin/{{ item.0.oracle_db_name }}_shutdown.sh owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    template: src=shutdown.j2 dest="{{ oracle_home_db_install }}/bin/{{ item.0.oracle_db_name }}_shutdown.sh" owner="{{ oracle_user }}" group="{{ oracle_group }}" mode=775 backup=yes
     with_together:
-       - oracle_databases
-       - checkdbexist.results
+       - "{{ oracle_databases }}"
+       - "{{ checkdbexist.results }}"
     become: yes
     become_user: root
 
   - name: Add dbora.service to allow Systemd to start and stop databases on boot
-    template: src=dbora.service.j2 dest=/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    template: src=dbora.service.j2 dest="/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service" owner="{{ oracle_user }}" group="{{ oracle_group }}" mode=775 backup=yes
     with_together:
-       - oracle_databases
-       - checkdbexist.results
+       - "{{ oracle_databases }}"
+       - "{{ checkdbexist.results }}"
     become: yes
     become_user: root
 
   - name: Link systemd script
-    file: src=/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service  dest=/lib/systemd/system/{{ item.0.oracle_db_name }}_dbora.service state=link
+    file: src="/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service"  dest="/lib/systemd/system/{{ item.0.oracle_db_name }}_dbora.service" state=link
     with_together:
-       - oracle_databases
-       - checkdbexist.results
+       - "{{ oracle_databases }}"
+       - "{{ checkdbexist.results }}"
     become: yes
     become_user: root
 
@@ -89,10 +89,10 @@
     become_user: root
 
   - name: Start the service and enable so it is automatically restarted on reboot.
-    service: name={{ item.0.oracle_db_name }}_dbora state=restarted
+    service: name="{{ item.0.oracle_db_name }}_dbora" state=restarted enabled=yes
     with_together:
-       - oracle_databases
-       - checkdbexist.results
+       - "{{ oracle_databases }}"
+       - "{{ checkdbexist.results }}"
     become: yes
     become_user: root
 
@@ -118,22 +118,22 @@
 #     - srvctlconfig
   - name: Add dotprofile (1)
     shell:  ps -ef | grep "ora_pmon_{{ item.oracle_db_name }}" |grep -v grep | sed 's/^.*pmon_//g'
-    with_items: oracle_databases
+    with_items: "{{ oracle_databases }}"
     register: dbs
     tags: dotprofile_db
 
   - name: Add dotprofile (2)
-    template: src=dotprofile-db.j2 dest={{ oracle_user_home }}/.profile_{{ item.0.oracle_db_name }} owner={{ oracle_user }} group={{ oracle_group }} mode=775 backup=yes
+    template: src=dotprofile-db.j2 dest="{{ oracle_user_home }}/.profile_{{ item.0.oracle_db_name }}" owner="{{ oracle_user }}" group="{{ oracle_group }}" mode=775 backup=yes
     with_together:
-    - oracle_databases
-    - dbs.results
+    - "{{ oracle_databases }}"
+    - "{{ dbs.results }}"
     tags: dotprofile_db
 
   - name: Update oratab
-    lineinfile: dest=/etc/oratab line="{{ item.1.stdout }}:{{ oracle_base }}/{{ item.0.oracle_version_db }}/{{ item.0.home }}:N" state=present
+    lineinfile: dest=/etc/oratab line="{{ item.1.stdout }}:{{ oracle_base }}/{{ item.0.oracle_version_db }}/{{ item.0.home }}:Y" state=present
     with_together:
-       - oracle_databases
-       - dbs.results
+       - "{{ oracle_databases }}"
+       - "{{ dbs.results }}"
     when: item.0.oracle_db_type != "SI"
     tags: update_oratab
 
