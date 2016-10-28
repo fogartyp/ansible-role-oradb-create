@@ -1,4 +1,10 @@
 ---
+  - name: Install supporting software
+    yum:
+      name: libselinux-python
+      state: latest
+
+
   - name: User | bash_profile
     template: src=bash_profile.j2 dest="/home/{{ oracle_user }}/.bash_profile" owner="{{ oracle_user }}" mode=0644
     with_items: "{{ oracle_databases }}"
@@ -67,34 +73,34 @@
     become: yes
     become_user: root
 
-  - name: Add dbora.service to allow Systemd to start and stop databases on boot
-    template: src=dbora.service.j2 dest="/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service" owner="{{ oracle_user }}" group="{{ oracle_group }}" mode=775 backup=yes
-    with_together:
-       - "{{ oracle_databases }}"
-       - "{{ checkdbexist.results }}"
-    become: yes
-    become_user: root
+#  - name: Add dbora.service to allow Systemd to start and stop databases on boot
+#    template: src=dbora.service.j2 dest="/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service" owner="{{ oracle_user }}" group="{{ oracle_group }}" mode=775 backup=yes
+#    with_together:
+#       - "{{ oracle_databases }}"
+#       - "{{ checkdbexist.results }}"
+#    become: yes
+#    become_user: root
 
-  - name: Link systemd script
-    file: src="/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service"  dest="/lib/systemd/system/{{ item.0.oracle_db_name }}_dbora.service" state=link
-    with_together:
-       - "{{ oracle_databases }}"
-       - "{{ checkdbexist.results }}"
-    become: yes
-    become_user: root
+#  - name: Link systemd script
+#    file: src="/etc/systemd/system/{{ item.0.oracle_db_name }}_dbora.service"  dest="/lib/systemd/system/{{ item.0.oracle_db_name }}_dbora.service" state=link
+#    with_together:
+#       - "{{ oracle_databases }}"
+#       - "{{ checkdbexist.results }}"
+#    become: yes
+#    become_user: root
 
-  - name: Reload systemd so it can see the new service.
-    shell: systemctl daemon-reload
-    become: yes
-    become_user: root
+#  - name: Reload systemd so it can see the new service.
+#    shell: systemctl daemon-reload
+#    become: yes
+#    become_user: root
 
-  - name: Start the service and enable so it is automatically restarted on reboot.
-    service: name="{{ item.0.oracle_db_name }}_dbora" state=restarted enabled=yes
-    with_together:
-       - "{{ oracle_databases }}"
-       - "{{ checkdbexist.results }}"
-    become: yes
-    become_user: root
+#  - name: Start the service and enable so it is automatically restarted on reboot.
+#    service: name="{{ item.0.oracle_db_name }}_dbora" state=restarted enabled=yes
+#    with_together:
+#       - "{{ oracle_databases }}"
+#       - "{{ checkdbexist.results }}"
+#    become: yes
+#    become_user: root
 
 #  - name: Add default services to databases
 #    shell: "{{ oracle_home_db }}/bin/srvctl add service -db {{ item.value.oracle_database }}
